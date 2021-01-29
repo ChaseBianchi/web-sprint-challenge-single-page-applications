@@ -3,8 +3,16 @@ import {BrowserRouter as Router,Switch,Route,Link} from "react-router-dom";
 import axios from 'axios';
 import styled from 'styled-components'
 import Form from './form'
+import * as yup from 'yup'
+import schema from './validation/formSchema'
 
+const Order = styled.div`
+width: 100%;
+height: auto;
+display: flex;
+flex-flow: row wrap;
 
+`
 const StyledNav = styled.nav`
 width: 100%;
 height: auto;
@@ -41,9 +49,62 @@ ul{
 }
 `
 
-const formReset = {}
+const formReset = {size: '',sauce: '',cheese: false, pepperoni: false, sausage: false, onions: false, olives: false, peppers: false, anchovies: false, pineapple: false,instructions: '',}
+const initialFormErr = {size: '',sauce: '',cheese: '', pepperoni: '', sausage: '', onions: '', olives: '', peppers: '', anchovies: '', pineapple: '',instructions: '',}
 const App = () => {
   const [formData, setFormData] = useState(formReset)
+  const [orders, setOrders] = useState([])
+  const [disabled, setDisabled] = useState(true)
+  const [formErr, setFormErr] = useState(initialFormErr)
+
+  const getOrders = ()=>{
+    axios.get(`https://reqres.in/api/users`).then(res=>setOrders(res.data.data))
+    .catch(err=>console.log(err))
+  }
+  useEffect(()=>{
+    getOrders()
+  },[])
+  useEffect(()=>{
+    schema.isValid(formData).then(valid=>{
+      setDisabled(valid)
+    })
+  },[formData])
+
+
+  const createNewOrder = newOrder => {
+    axios.post(`https://reqres.in/api/users`, newOrder).then(res=>{
+      setOrders([res, ...orders]);
+      setFormData(formReset)
+    })
+    .catch(err=>console.log(err))
+    // debugger
+  }
+
+  const formSubmit = ()=>{
+    const newOrder = {
+      size: formData.size,
+      sauce: formData.sauce,
+      cheese: formData.cheese, pepperoni: formData.pepperoni, sausage: formData.sausage, onions: formData.onions, olives: formData.olives, peppers: formData.peppers, anchovies: formData.anchovies, pineapple: formData.pineapple,
+      instructions: formData.instructions.trim(),
+    }
+    createNewOrder(newOrder);
+  }
+
+  const inputChange = (name, value) => {
+    yup.reach(schema, name).validate(value).then(()=>{
+      setFormErr({...formErr, [name]: ''})
+    }).catch(err => {
+      setFormErr({...formErr, [name]: err.errors[0]})
+    })
+    setFormData({...formData, [name]: value})
+  }
+  // const inputChange = (name, value)=>{
+  //   yup.reach(schema, name).validate(value).then(()=>{
+  //     setFormErr({...formErr, [name]: ''})
+  //   }).catch(err=>setFormErr({...formErr, [name]:err.errors[0]}))
+  //   setFormData({...formData, [name]: value})
+  // }
+
   return (<>
     <Router>
       <StyledNav>
@@ -54,8 +115,17 @@ const App = () => {
       </StyledNav>
     </Router>
     <h1 style={{textAlign: 'center'}}>Bianchi's Pizza</h1>
-    <Form/>
-
+    <Form formData={formData} inputChange={inputChange} disabled={disabled} formErr={formErr}formSubmit={formSubmit}/>
+    {/* <Order>
+      {orders.map((orderData)=>{
+        return(
+          <div>
+            <h3>Added to order</h3>
+            <p>{`${orderData.data.size} pizza with ${orderData.data.sauce}`}</p>
+          </div>
+        )
+      })}
+    </Order> */}
     </>
   );
 };
